@@ -59,6 +59,8 @@ class DNSHandler():
             if QR[d.header.qr] == "QUERY":  
                      
                 # Gather query parameters
+                # NOTE: Do not lowercase qname here, because we want to see
+                #       any case request weirdness in the logs.
                 qname = str(d.q.qname)
                 qtype = QTYPE[d.q.qtype]
                 
@@ -175,8 +177,9 @@ class DNSHandler():
         # global matching ['*.*.*.*.*.*.*.*.*.*'] will match last. Use sorting for that.
         for domain,host in sorted(nametodns.iteritems(), key=operator.itemgetter(1)):
 
-            # Make domain case insensitive
-            domain = domain.lower()
+            # NOTE: It is assumed that domain name was already lowercased
+            #       when it was loaded through --file, --fakedomains or --truedomains
+            #       don't want to waste time lowercasing domains on every request.
 
             # Split and reverse domain into components for matching
             domain = domain.split('.')
@@ -374,6 +377,10 @@ if __name__ == "__main__":
 
             if section in nametodns:
                 for domain,record in config.items(section):
+
+                    # Make domain case insensitive
+                    domain = domain.lower()
+
                     nametodns[section][domain] = record
                     print "[+] Cooking %s replies for domain %s with '%s'" % (section,domain,record)
             else:
@@ -390,6 +397,9 @@ if __name__ == "__main__":
         
         if options.fakedomains:
             for domain in options.fakedomains.split(','):
+
+                # Make domain case insensitive
+                domain = domain.lower()
 
                 if fakeip:
                     nametodns["A"][domain.strip()] = fakeip
@@ -413,6 +423,9 @@ if __name__ == "__main__":
                   
         elif options.truedomains:
             for domain in options.truedomains.split(','):
+
+                # Make domain case insensitive
+                domain = domain.lower()
 
                 if fakeip:
                     nametodns["A"][domain.strip()] = False
