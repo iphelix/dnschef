@@ -38,6 +38,7 @@ from lib.IPy import IP
 import threading, random, operator, time
 import SocketServer, socket, sys, os
 import binascii
+import string
 
 # DNSHandler Mixin. The class contains generic functions to parse DNS requests and
 # calculate an appropriate response based on user parameters.
@@ -162,6 +163,9 @@ class DNSHandler():
 
     # Find appropriate ip address to use for a queried name. The function can 
     def findnametodns(self,qname,nametodns):
+
+        # Make qname case insensitive
+        qname = qname.lower()
     
         # Split and reverse qname into components for matching.
         qnamelist = qname.split('.')
@@ -170,6 +174,11 @@ class DNSHandler():
         # HACK: It is important to search the nametodns dictionary before iterating it so that
         # global matching ['*.*.*.*.*.*.*.*.*.*'] will match last. Use sorting for that.
         for domain,host in sorted(nametodns.iteritems(), key=operator.itemgetter(1)):
+
+            # Make domain case insensitive
+            domain = domain.lower()
+
+            # Split and reverse domain into components for matching
             domain = domain.split('.')
             domain.reverse()
             
@@ -279,6 +288,8 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
         server.shutdown()
         print "[*] DNSChef is shutting down."
         sys.exit()
+    except Exception, e:
+        print "[!] Failed to start the server: %s" % e
     
 if __name__ == "__main__":
 
