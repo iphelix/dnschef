@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 #
-# IDA Sploiter is an exploit development and vulnerability research environment
-# implemented as a plugin for Hex-Ray's IDA Pro disassembler.
+# DNSChef is a highly configurable DNS Proxy for Penetration Testers 
+# and Malware Analysts. Please visit http://thesprawl.org/projects/dnschef/
+# for the latest version and documentation. Please forward all issues and
+# concerns to iphelix [at] thesprawl.org.
 
 DNSCHEF_VERSION = "0.3"
 
