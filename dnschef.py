@@ -527,23 +527,23 @@ if __name__ == "__main__":
 
                 if fakeip:
                     nametodns["A"][domain] = fakeip
-                    print "[*] Cooking A replies to point to %s matching: %s" % (options.fakeip, ", ".join(nametodns["A"].keys()))
+                    print "[*] Cooking A replies to point to %s matching: %s" % (options.fakeip, domain)
 
                 if fakeipv6:
                     nametodns["AAAA"][domain] = fakeipv6
-                    print "[*] Cooking AAAA replies to point to %s matching: %s" % (options.fakeipv6, ", ".join(nametodns["AAAA"].keys()))
+                    print "[*] Cooking AAAA replies to point to %s matching: %s" % (options.fakeipv6, domain)
 
                 if fakemail:
                     nametodns["MX"][domain] = fakemail
-                    print "[*] Cooking MX replies to point to %s matching: %s" % (options.fakemail, ", ".join(nametodns["MX"].keys()))
+                    print "[*] Cooking MX replies to point to %s matching: %s" % (options.fakemail, domain)
 
                 if fakealias:
                     nametodns["CNAME"][domain] = fakealias
-                    print "[*] Cooking CNAME replies to point to %s matching: %s" % (options.fakealias, ", ".join(nametodns["CNAME"].keys()))
+                    print "[*] Cooking CNAME replies to point to %s matching: %s" % (options.fakealias, domain)
 
                 if fakens:
                     nametodns["NS"][domain] = fakens
-                    print "[*] Cooking NS replies to point to %s matching: %s" % (options.fakens, ", ".join(nametodns["NS"].keys()))
+                    print "[*] Cooking NS replies to point to %s matching: %s" % (options.fakens, domain)
                   
         elif options.truedomains:
             for domain in options.truedomains.split(','):
@@ -554,27 +554,27 @@ if __name__ == "__main__":
 
                 if fakeip:
                     nametodns["A"][domain] = False
-                    print "[*] Cooking A replies to point to %s not matching: %s" % (options.fakeip, ", ".join(nametodns["A"].keys()))
+                    print "[*] Cooking A replies to point to %s not matching: %s" % (options.fakeip, domain)
                     nametodns["A"]['*.*.*.*.*.*.*.*.*.*'] = fakeip
 
                 if fakeipv6:
                     nametodns["AAAA"][domain] = False
-                    print "[*] Cooking AAAA replies to point to %s not matching: %s" % (options.fakeipv6, ", ".join(nametodns["AAAA"].keys()))
+                    print "[*] Cooking AAAA replies to point to %s not matching: %s" % (options.fakeipv6, domain)
                     nametodns["AAAA"]['*.*.*.*.*.*.*.*.*.*'] = fakeipv6
 
                 if fakemail:
                     nametodns["MX"][domain] = False
-                    print "[*] Cooking MX replies to point to %s not matching: %s" % (options.fakemail, ", ".join(nametodns["MX"].keys()))
+                    print "[*] Cooking MX replies to point to %s not matching: %s" % (options.fakemail, domain)
                     nametodns["MX"]['*.*.*.*.*.*.*.*.*.*'] = fakemail
 
                 if fakealias:
                     nametodns["CNAME"][domain] = False
-                    print "[*] Cooking CNAME replies to point to %s not matching: %s" % (options.fakealias, ", ".join(nametodns["CNAME"].keys()))
+                    print "[*] Cooking CNAME replies to point to %s not matching: %s" % (options.fakealias, domain)
                     nametodns["CNAME"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
 
                 if fakens:
                     nametodns["NS"][domain] = False
-                    print "[*] Cooking NS replies to point to %s not matching: %s" % (options.fakens, ", ".join(nametodns["NS"].keys()))
+                    print "[*] Cooking NS replies to point to %s not matching: %s" % (options.fakens, domain)
                     nametodns["NS"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
                   
         else:
