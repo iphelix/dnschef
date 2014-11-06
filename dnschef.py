@@ -272,20 +272,43 @@ class DNSHandler():
             return False
     
     # Obtain a response from a real DNS server.
-    def proxyrequest(self, request, host, port="53"):
+    def proxyrequest(self, request, host, port="53", protocol="udp"):
         reply = None
         try:
             if self.server.ipv6:
-                sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+
+                if protocol == "udp":
+                    sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+                elif protocol == "tcp":
+                    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+
             else:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                if protocol == "udp":
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                elif protocol == "tcp":
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
             sock.settimeout(3.0)
 
             # Send the proxy request to a randomly chosen DNS server
-            sock.sendto(request, (host, int(port)))
-            reply = sock.recv(1024)
-            sock.close()
+
+            if protocol == "udp":
+                sock.sendto(request, (host, int(port)))
+                reply = sock.recv(1024)
+                sock.close()
+
+            elif protocol == "tcp":
+                sock.connect((host, int(port)))
+
+                # Add length for the TCP request
+                length = binascii.unhexlify("%04x" % len(request)) 
+                sock.sendall(length+request)
+
+                # Strip length from the response
+                reply = sock.recv(1024)
+                reply = reply[2:]
+
+                sock.close()
 
         except Exception, e:
             print "[!] Could not proxy request: %s" % e
@@ -397,7 +420,7 @@ if __name__ == "__main__":
     parser.add_option('--truedomains', metavar="thesprawl.org,google.com", action="store", help='A comma separated list of domain names which will be resolved to their TRUE values. All other domain names will be resolved to fake values specified in the above parameters.')
     
     rungroup = OptionGroup(parser,"Optional runtime parameters.")
-    rungroup.add_option("--nameservers", metavar="8.8.8.8#53 or 2001:4860:4860::8888", default='8.8.8.8', action="store", help='A comma separated list of alternative DNS servers to use with proxied requests. Nameservers can have either IP or IP#PORT format. A randomly selected server from the list will be used for proxy requests when provided with multiple servers. By default, the tool uses Google\'s public DNS server 8.8.8.8 when running in IPv4 mode and 2001:4860:4860::8888 when running in IPv6 mode.')
+    rungroup.add_option("--nameservers", metavar="8.8.8.8#53 or 4.2.2.1#53#tcp or 2001:4860:4860::8888", default='8.8.8.8', action="store", help='A comma separated list of alternative DNS servers to use with proxied requests. Nameservers can have either IP or IP#PORT format. A randomly selected server from the list will be used for proxy requests when provided with multiple servers. By default, the tool uses Google\'s public DNS server 8.8.8.8 when running in IPv4 mode and 2001:4860:4860::8888 when running in IPv6 mode.')
     rungroup.add_option("-i","--interface", metavar="127.0.0.1 or ::1", default="127.0.0.1", action="store", help='Define an interface to use for the DNS listener. By default, the tool uses 127.0.0.1 for IPv4 mode and ::1 for IPv6 mode.')
     rungroup.add_option("-t","--tcp", action="store_true", default=False, help="Use TCP DNS proxy instead of the default UDP.")
     rungroup.add_option("-6","--ipv6", action="store_true", default=False, help="Run in IPv6 mode.")
