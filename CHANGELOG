@@ -1,5 +1,6 @@
 Version 0.3
 * Added support for the latest version of the dnslib library - 0.9.3
+* Added support for logging
 * Added support for SRV, DNSKEY, and RRSIG records.
 * Added support for TCP remote nameserver connections.
 * DNS name matching is now case insensitive.
