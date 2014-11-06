@@ -1,3 +1,10 @@
+Version 0.3
+* Added support for the latest version of the dnslib library - 0.9.3
+* Added support for SRV, DNSKEY, and RRSIG records.
+* Added support for TCP remote nameserver connections.
+* DNS name matching is now case insensitive.
+* Various small bug fixes and performance tweaks.
+
 Version 0.2.1
 * Fixed a Python 2.6 compatibility issue. (thanks Mehran Goudarzi)
 
