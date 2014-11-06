@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 #
-# DNSChef is a highly configurable DNS Proxy for Penetration Testers 
-# and Malware Analysts. Please visit http://thesprawl.org/projects/dnschef/
-# for the latest version and documentation. Please forward all issues and
-# concerns to iphelix [at] thesprawl.org.
-#
-# VERSION 0.2.1
-#
-# Copyright (C) 2013 Peter Kacherginsky
+# IDA Sploiter is an exploit development and vulnerability research environment
+# implemented as a plugin for Hex-Ray's IDA Pro disassembler.
+
+DNSCHEF_VERSION = "0.3"
+
+# Copyright (C) 2014 Peter Kacherginsky
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -17,7 +15,10 @@
 #    list of conditions and the following disclaimer. 
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution. 
+#    and/or other materials provided with the distribution.
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software without 
+#    specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -32,13 +33,16 @@
 
 from optparse import OptionParser,OptionGroup
 from ConfigParser import ConfigParser
-from lib.dnslib import *
-from lib.IPy import IP
+
+from dnslib import *
+from IPy import IP
 
 import threading, random, operator, time
 import SocketServer, socket, sys, os
 import binascii
 import string
+import base64
+import time
 
 # DNSHandler Mixin. The class contains generic functions to parse DNS requests and
 # calculate an appropriate response based on user parameters.
@@ -62,11 +66,17 @@ class DNSHandler():
                 # NOTE: Do not lowercase qname here, because we want to see
                 #       any case request weirdness in the logs.
                 qname = str(d.q.qname)
+                
+                # Chop off the last period
+                if qname[-1] == '.': qname = qname[:-1]
+
                 qtype = QTYPE[d.q.qtype]
                 
                 # Find all matching fake DNS records for the query name or get False
                 fake_records = dict()
+
                 for record in self.server.nametodns:
+
                     fake_records[record] = self.findnametodns(qname,self.server.nametodns[record])
                 
                 # Check if there is a fake record for the current request qtype
@@ -74,7 +84,8 @@ class DNSHandler():
 
                     fake_record = fake_records[qtype]
 
-                    response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap,qr=1, aa=1, ra=1), q=d.q)
+                    # Create a custom response to the query
+                    response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap, qr=1, aa=1, ra=1), q=d.q)
 
                     print "[%s] %s: cooking the response of type '%s' for %s to %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname, fake_record)
 
@@ -83,7 +94,7 @@ class DNSHandler():
                         ipv6 = IP(fake_record)
                         ipv6_bin = ipv6.strBin()
                         ipv6_hex_tuple = [int(ipv6_bin[i:i+8],2) for i in xrange(0,len(ipv6_bin),8)]
-                        response.add_answer(RR(qname, QTYPE[qtype], rdata=RDMAP[qtype](ipv6_hex_tuple)))
+                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](ipv6_hex_tuple)))
 
                     elif qtype == "SOA":
                         mname,rname,t1,t2,t3,t4,t5 = fake_record.split(" ")
@@ -93,7 +104,7 @@ class DNSHandler():
                         if mname[-1] == ".": mname = mname[:-1]
                         if rname[-1] == ".": rname = rname[:-1]
 
-                        response.add_answer(RR(qname, QTYPE[qtype], rdata=RDMAP[qtype](mname,rname,times)))
+                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](mname,rname,times)))
 
                     elif qtype == "NAPTR":
                         order,preference,flags,service,regexp,replacement = fake_record.split(" ")
@@ -103,12 +114,44 @@ class DNSHandler():
                         # dnslib doesn't like trailing dots
                         if replacement[-1] == ".": replacement = replacement[:-1]
 
-                        response.add_answer(RR(qname, QTYPE[qtype], rdata=RDMAP[qtype](order,preference,flags,service,regexp,DNSLabel(replacement))))
+                        response.add_answer( RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](order,preference,flags,service,regexp,DNSLabel(replacement))) )
+
+                    elif qtype == "SRV":
+                        priority, weight, port, target = fake_record.split(" ")
+                        priority = int(priority)
+                        weight = int(weight)
+                        port = int(port)
+                        if target[-1] == ".": target = target[:-1]
+
+                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](priority, weight, port, target) ))
+
+                    elif qtype == "DNSKEY":
+                        flags, protocol, algorithm, key = fake_record.split(" ")
+                        flags = int(flags)
+                        protocol = int(protocol)
+                        algorithm = int(algorithm)
+                        key = base64.b64decode(("".join(key)).encode('ascii'))
+
+                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](flags, protocol, algorithm, key) ))
+
+                    elif qtype == "RRSIG":
+                        covered, algorithm, labels, orig_ttl, sig_exp, sig_inc, key_tag, name, sig = fake_record.split(" ")
+                        covered = getattr(QTYPE,covered) # NOTE: Covered QTYPE
+                        algorithm = int(algorithm)
+                        labels = int(labels)
+                        orig_ttl = int(orig_ttl)
+                        sig_exp = int(time.mktime(time.strptime(sig_exp +'GMT',"%Y%m%d%H%M%S%Z")))
+                        sig_inc = int(time.mktime(time.strptime(sig_inc +'GMT',"%Y%m%d%H%M%S%Z")))
+                        key_tag = int(key_tag)
+                        if name[-1] == '.': name = name[:-1]
+                        sig = base64.b64decode(("".join(sig)).encode('ascii'))
+
+                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](covered, algorithm, labels,orig_ttl, sig_exp, sig_inc, key_tag, name, sig) ))
 
                     else:
                         # dnslib doesn't like trailing dots
                         if fake_record[-1] == ".": fake_record = fake_record[:-1]
-                        response.add_answer(RR(qname, QTYPE[qtype], rdata=RDMAP[qtype](fake_record)))
+                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](fake_record)))
 
                     response = response.pack()                   
 
@@ -135,7 +178,7 @@ class DNSHandler():
                                 if mname[-1] == ".": mname = mname[:-1]
                                 if rname[-1] == ".": rname = rname[:-1]
 
-                                response.add_answer(RR(qname, QTYPE[qtype], rdata=RDMAP[qtype](mname,rname,times)))
+                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](mname,rname,times)))
 
                             elif qtype == "NAPTR":
                                 order,preference,flags,service,regexp,replacement = fake_record.split(" ")
@@ -145,11 +188,44 @@ class DNSHandler():
                                 # dnslib doesn't like trailing dots
                                 if replacement and replacement[-1] == ".": replacement = replacement[:-1]
 
-                                response.add_answer(RR(qname, QTYPE[qtype], rdata=RDMAP[qtype](order,preference,flags,service,regexp,replacement)))
+                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](order,preference,flags,service,regexp,replacement)))
+
+                            elif qtype == "SRV":
+                                priority, weight, port, target = fake_record.split(" ")
+                                priority = int(priority)
+                                weight = int(weight)
+                                port = int(port)
+                                if target[-1] == ".": target = target[:-1]
+
+                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](priority, weight, port, target) ))
+
+                            elif qtype == "DNSKEY":
+                                flags, protocol, algorithm, key = fake_record.split(" ")
+                                flags = int(flags)
+                                protocol = int(protocol)
+                                algorithm = int(algorithm)
+                                key = base64.b64decode(("".join(key)).encode('ascii'))
+
+                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](flags, protocol, algorithm, key) ))
+
+                            elif qtype == "RRSIG":
+                                covered, algorithm, labels, orig_ttl, sig_exp, sig_inc, key_tag, name, sig = fake_record.split(" ")
+                                covered = getattr(QTYPE,covered) # NOTE: Covered QTYPE
+                                algorithm = int(algorithm)
+                                labels = int(labels)
+                                orig_ttl = int(orig_ttl)
+                                sig_exp = int(time.mktime(time.strptime(sig_exp +'GMT',"%Y%m%d%H%M%S%Z")))
+                                sig_inc = int(time.mktime(time.strptime(sig_inc +'GMT',"%Y%m%d%H%M%S%Z")))
+                                key_tag = int(key_tag)
+                                if name[-1] == '.': name = name[:-1]
+                                sig = base64.b64decode(("".join(sig)).encode('ascii'))
+
+                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](covered, algorithm, labels,orig_ttl, sig_exp, sig_inc, key_tag, name, sig) ))
+
                             else:
                                 # dnslib doesn't like trailing dots
                                 if fake_record[-1] == ".": fake_record = fake_record[:-1]
-                                response.add_answer(RR(qname, QTYPE[qtype], rdata=RDMAP[qtype](fake_record)))
+                                response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](fake_record)))
 
                     response = response.pack()
 
@@ -232,7 +308,7 @@ class TCPHandler(DNSHandler, SocketServer.BaseRequestHandler):
     def handle(self):
         data = self.request.recv(1024)
         
-        # Remove the addition "length" parameter used in
+        # Remove the addition "length" parameter used in the
         # TCP DNS protocol
         data = data[2:]
         response = self.parse(data)
@@ -277,9 +353,10 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
         else:
             server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6)
 
-        # Start a thread with the server -- that thread will then start one
+        # Start a thread with the server -- that thread will then start
         # more threads for each request
         server_thread = threading.Thread(target=server.serve_forever)
+
         # Exit the server thread when the main thread terminates
         server_thread.daemon = True
         server_thread.start()
@@ -297,7 +374,7 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
 if __name__ == "__main__":
 
     header  = "          _                _          __  \n"
-    header += "         | | version 0.2  | |        / _| \n"
+    header += "         | | version %s  | |        / _| \n" % DNSCHEF_VERSION
     header += "       __| |_ __  ___  ___| |__   ___| |_ \n"
     header += "      / _` | '_ \/ __|/ __| '_ \ / _ \  _|\n"
     header += "     | (_| | | | \__ \ (__| | | |  __/ |  \n"
@@ -335,7 +412,7 @@ if __name__ == "__main__":
         print header
     
     # Main storage of domain filters
-    # NOTE: RDMAP is a dictionary map of qtype strings to handling classses
+    # NOTE: RDMAP is a dictionary map of qtype strings to handling classes
     nametodns = dict()
     for qtype in RDMAP.keys():
         nametodns[qtype] = dict()
@@ -400,25 +477,26 @@ if __name__ == "__main__":
 
                 # Make domain case insensitive
                 domain = domain.lower()
+                domain = domain.strip()
 
                 if fakeip:
-                    nametodns["A"][domain.strip()] = fakeip
+                    nametodns["A"][domain] = fakeip
                     print "[*] Cooking A replies to point to %s matching: %s" % (options.fakeip, ", ".join(nametodns["A"].keys()))
 
                 if fakeipv6:
-                    nametodns["AAAA"][domain.strip()] = fakeipv6
+                    nametodns["AAAA"][domain] = fakeipv6
                     print "[*] Cooking AAAA replies to point to %s matching: %s" % (options.fakeipv6, ", ".join(nametodns["AAAA"].keys()))
 
                 if fakemail:
-                    nametodns["MX"][domain.strip()] = fakemail
+                    nametodns["MX"][domain] = fakemail
                     print "[*] Cooking MX replies to point to %s matching: %s" % (options.fakemail, ", ".join(nametodns["MX"].keys()))
 
                 if fakealias:
-                    nametodns["CNAME"][domain.strip()] = fakealias
+                    nametodns["CNAME"][domain] = fakealias
                     print "[*] Cooking CNAME replies to point to %s matching: %s" % (options.fakealias, ", ".join(nametodns["CNAME"].keys()))
 
                 if fakens:
-                    nametodns["NS"][domain.strip()] = fakens
+                    nametodns["NS"][domain] = fakens
                     print "[*] Cooking NS replies to point to %s matching: %s" % (options.fakens, ", ".join(nametodns["NS"].keys()))
                   
         elif options.truedomains:
@@ -426,33 +504,38 @@ if __name__ == "__main__":
 
                 # Make domain case insensitive
                 domain = domain.lower()
+                domain = domain.strip()
 
                 if fakeip:
-                    nametodns["A"][domain.strip()] = False
+                    nametodns["A"][domain] = False
                     print "[*] Cooking A replies to point to %s not matching: %s" % (options.fakeip, ", ".join(nametodns["A"].keys()))
                     nametodns["A"]['*.*.*.*.*.*.*.*.*.*'] = fakeip
 
                 if fakeipv6:
-                    nametodns["AAAA"][domain.strip()] = False
+                    nametodns["AAAA"][domain] = False
                     print "[*] Cooking AAAA replies to point to %s not matching: %s" % (options.fakeipv6, ", ".join(nametodns["AAAA"].keys()))
                     nametodns["AAAA"]['*.*.*.*.*.*.*.*.*.*'] = fakeipv6
 
                 if fakemail:
-                    nametodns["MX"][domain.strip()] = False
+                    nametodns["MX"][domain] = False
                     print "[*] Cooking MX replies to point to %s not matching: %s" % (options.fakemail, ", ".join(nametodns["MX"].keys()))
                     nametodns["MX"]['*.*.*.*.*.*.*.*.*.*'] = fakemail
 
                 if fakealias:
-                    nametodns["CNAME"][domain.strip()] = False
+                    nametodns["CNAME"][domain] = False
                     print "[*] Cooking CNAME replies to point to %s not matching: %s" % (options.fakealias, ", ".join(nametodns["CNAME"].keys()))
                     nametodns["CNAME"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
 
                 if fakens:
-                    nametodns["NS"][domain.strip()] = False
+                    nametodns["NS"][domain] = False
                     print "[*] Cooking NS replies to point to %s not matching: %s" % (options.fakens, ", ".join(nametodns["NS"].keys()))
                     nametodns["NS"]['*.*.*.*.*.*.*.*.*.*'] = fakealias
                   
         else:
+
+            # NOTE: '*.*.*.*.*.*.*.*.*.*' domain is a special ANY domain
+            #       which is compatible with the wildflag algorithm above.
+
             if fakeip:
                 nametodns["A"]['*.*.*.*.*.*.*.*.*.*'] = fakeip
                 print "[*] Cooking all A replies to point to %s" % fakeip
