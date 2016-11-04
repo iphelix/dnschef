@@ -5,7 +5,7 @@
 # for the latest version and documentation. Please forward all issues and
 # concerns to iphelix [at] thesprawl.org.
 
-DNSCHEF_VERSION = "0.3"
+DNSCHEF_VERSION = "0.4"
 
 # Copyright (C) 2014 Peter Kacherginsky
 # All rights reserved.
@@ -157,7 +157,6 @@ class DNSHandler():
                         if fake_record[-1] == ".": fake_record = fake_record[:-1]
                         response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](fake_record)))
 
-                    response = response.pack()                   
 
                 elif qtype == "*" and not None in fake_records.values():
                     print "[%s] %s: cooking the response of type '%s' for %s with %s" % (time.strftime("%H:%M:%S"), self.client_address[0], "ANY", qname, "all known fake records.")
@@ -232,16 +231,28 @@ class DNSHandler():
                                 if fake_record[-1] == ".": fake_record = fake_record[:-1]
                                 response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](fake_record)))
 
-                    response = response.pack()
-
                 # Proxy the request
                 else:
-                    print "[%s] %s: proxying the response of type '%s' for %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname)
-                    if self.server.log: self.server.log.write( "[%s] %s: proxying the response of type '%s' for %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname) )
+                    if self.server.dontproxy:
+                        print "[%s] %s: dropping query of type '%s' for %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname)
+                        if self.server.log: self.server.log.write( "[%s] %s: dropping query of type '%s' for %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname) )
+                    else:
+                        print "[%s] %s: proxying the response of type '%s' for %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname)
+                        if self.server.log: self.server.log.write( "[%s] %s: proxying the response of type '%s' for %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname) )
 
-                    nameserver_tuple = random.choice(self.server.nameservers).split('#')               
-                    response = self.proxyrequest(data,*nameserver_tuple)
+                        nameserver_tuple = random.choice(self.server.nameservers).split('#')               
+                        response = DNSRecord.parse(self.proxyrequest(data,*nameserver_tuple))
                 
+        if externhandler:
+            if "handle" in dir(externhandler):
+                print "[%s] %s: Calling handle on external handler." % (time.strftime("%H:%M:%S"), self.client_address[0])
+                if self.server.log: self.server.log.write( "[%s] %s: Calling handle on external handler\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0]))
+                response=externhandler.handle(d,response)
+                
+
+        if response:
+            response = response.pack()                   
+  
         return response         
     
 
@@ -351,11 +362,13 @@ class TCPHandler(DNSHandler, SocketServer.BaseRequestHandler):
 class ThreadedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
 
     # Override SocketServer.UDPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers,dontproxy, ipv6, externhandler, log):
         self.nametodns  = nametodns
         self.nameservers = nameservers
+        self.dontproxy   = dontproxy
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
+        self.externhandler  = externhandler
         self.log = log
 
         SocketServer.UDPServer.__init__(self,server_address,RequestHandlerClass) 
@@ -366,17 +379,19 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     allow_reuse_address = True
 
     # Override SocketServer.TCPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers,dontproxy, ipv6, externhandler, log):
         self.nametodns   = nametodns
         self.nameservers = nameservers
+        self.dontproxy   = dontproxy
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
+        self.externhandler  = externhandler
         self.log = log
 
         SocketServer.TCPServer.__init__(self,server_address,RequestHandlerClass) 
         
 # Initialize and start the DNS Server        
-def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
+def start_cooking(interface, nametodns, nameservers, dontproxy=False, tcp=False, ipv6=False, port="53", externhandler=None,logfile=None):
     try:
 
         if logfile: 
@@ -387,9 +402,9 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
 
         if tcp:
             print "[*] DNSChef is running in TCP mode"
-            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers,dontproxy, ipv6, externhandler, log)
         else:
-            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers,dontproxy, ipv6, externhandler, log)
 
         # Start a thread with the server -- that thread will then start
         # more threads for each request
@@ -442,10 +457,12 @@ if __name__ == "__main__":
 
     parser.add_option('--fakedomains', metavar="thesprawl.org,google.com", action="store", help='A comma separated list of domain names which will be resolved to FAKE values specified in the the above parameters. All other domain names will be resolved to their true values.')
     parser.add_option('--truedomains', metavar="thesprawl.org,google.com", action="store", help='A comma separated list of domain names which will be resolved to their TRUE values. All other domain names will be resolved to fake values specified in the above parameters.')
+    parser.add_option("-H", "--handler", dest="externhandler", help="External python module to call with request/response.",default=None)
     
     rungroup = OptionGroup(parser,"Optional runtime parameters.")
     rungroup.add_option("--logfile", action="store", help="Specify a log file to record all activity")
     rungroup.add_option("--nameservers", metavar="8.8.8.8#53 or 4.2.2.1#53#tcp or 2001:4860:4860::8888", default='8.8.8.8', action="store", help='A comma separated list of alternative DNS servers to use with proxied requests. Nameservers can have either IP or IP#PORT format. A randomly selected server from the list will be used for proxy requests when provided with multiple servers. By default, the tool uses Google\'s public DNS server 8.8.8.8 when running in IPv4 mode and 2001:4860:4860::8888 when running in IPv6 mode.')
+    rungroup.add_option("-d","--dontproxy", action="store_true", default=False, help="Don't proxy requests, only respond for configured mappings.")
     rungroup.add_option("-i","--interface", metavar="127.0.0.1 or ::1", default="127.0.0.1", action="store", help='Define an interface to use for the DNS listener. By default, the tool uses 127.0.0.1 for IPv4 mode and ::1 for IPv6 mode.')
     rungroup.add_option("-t","--tcp", action="store_true", default=False, help="Use TCP DNS proxy instead of the default UDP.")
     rungroup.add_option("-6","--ipv6", action="store_true", default=False, help="Run in IPv6 mode.")
@@ -492,7 +509,8 @@ if __name__ == "__main__":
     # Use alternative DNS servers
     if options.nameservers:
         nameservers = options.nameservers.split(',')
-        print "[*] Using the following nameservers: %s" % ", ".join(nameservers)
+        if not options.dontproxy:
+          print "[*] Using the following nameservers: %s" % ", ".join(nameservers)
 
     # External file definitions
     if options.file:
@@ -605,8 +623,20 @@ if __name__ == "__main__":
                 print "[*] Cooking all NS replies to point to %s" % fakens
     
     # Proxy all DNS requests
-    if not options.fakeip and not options.fakeipv6 and not options.fakemail and not options.fakealias and not options.fakens and not options.file:
+    if not options.fakeip and not options.fakeipv6 and not options.fakemail and not options.fakealias and not options.fakens and not options.file and not options.dontproxy:
         print "[*] No parameters were specified. Running in full proxy mode"    
+ 
+    externhandler=None
+    if options.externhandler:
+        try:
+            print "[*] Importing external handler %s" % options.externhandler
+            externhandler = __import__(options.externhandler, fromlist=[''])
+            if "init" in dir(externhandler):
+                print "[*] calling init in %s" % options.externhandler
+                externhandler.init()
+        except Exception, e:                                                                                                                                                
+            print "[*] unable to import module: %s" % options.externhandler
+            externhandler=None
 
     # Launch DNSChef
-    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, dontproxy=options.dontproxy,tcp=options.tcp, ipv6=options.ipv6, port=options.port, externhandler=options.externhandler,logfile=options.logfile)
