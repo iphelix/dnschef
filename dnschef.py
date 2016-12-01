@@ -45,6 +45,7 @@ import binascii
 import string
 import base64
 import time
+import iptc
 
 # DNSHandler Mixin. The class contains generic functions to parse DNS requests and
 # calculate an appropriate response based on user parameters.
@@ -77,11 +78,11 @@ class DNSHandler():
                 
                 # Find all matching fake DNS records for the query name or get False
                 fake_records = dict()
-
+		#print "qname", qname
                 for record in self.server.nametodns:
-
+		    #print "nametodns[record]", nametodns[record]
                     fake_records[record] = self.findnametodns(qname,self.server.nametodns[record])
-                
+                    #print "record in loop", record
                 # Check if there is a fake record for the current request qtype
                 if qtype in fake_records and fake_records[qtype]:
 
@@ -154,10 +155,55 @@ class DNSHandler():
 
                     else:
                         # dnslib doesn't like trailing dots
+			#print "fake_record",fake_record
+			#print "record type info ", recType
+			#print "Record type [record] ", recType[record]
                         if fake_record[-1] == ".": fake_record = fake_record[:-1]
                         response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](fake_record)))
+                    	response.add_answer(RR(qname, QTYPE.TXT, rdata=TXT("Proxy IP = 192.168.1.1")))
+			# Add iptables if it is grey packet
+			print "rectype for this query", recType[qname]
+			if recType[qname] == "GREY":
+				print "Entered if condition"
+				table = iptc.Table(iptc.Table.NAT)
+				chain = table.create_chain('dnatrules111')
+				rule = iptc.Rule()
+				rule.protocol = 'tcp'
+				rule.in_interface = 'eth0'
+				
+				m = rule.create_match('tcp')
+				m.dport = '80'
 
-                    response = response.pack()                   
+				t = rule.create_target('DNAT')
+				t.to_destination = '192.168.1.11'
+
+				chain.insert_rule(rule)		
+
+				rule1 = iptc.Rule()
+				rule1.protocol = 'tcp'
+				rule1.in_interface = 'eth0'
+				
+				m = rule1.create_match('tcp')
+				m.dport = '443'
+
+				t = rule1.create_target('DNAT')
+				t.to_destination = '192.168.1.11'
+
+				chain.insert_rule(rule1)
+
+				rule2 = iptc.Rule()
+				rule2.protocol = 'tcp'
+				rule2.in_interface = 'eth0'
+
+				m = rule2.create_match('tcp')
+				m.dport = '!80'
+			
+				t = rule2.create_target('DNAT')
+				t.to_destination = '192.168.1.222'
+
+				chain.insert_rule(rule2)
+				print "Created iptable rules"
+			response = response.pack()                   
 
                 elif qtype == "*" and not None in fake_records.values():
                     print "[%s] %s: cooking the response of type '%s' for %s with %s" % (time.strftime("%H:%M:%S"), self.client_address[0], "ANY", qname, "all known fake records.")
@@ -250,7 +296,7 @@ class DNSHandler():
 
         # Make qname case insensitive
         qname = qname.lower()
-    
+   	print nametodns 
         # Split and reverse qname into components for matching.
         qnamelist = qname.split('.')
         qnamelist.reverse()
@@ -351,12 +397,13 @@ class TCPHandler(DNSHandler, SocketServer.BaseRequestHandler):
 class ThreadedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
 
     # Override SocketServer.UDPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, recType, nameservers, ipv6, log):
         self.nametodns  = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
+	self.recType = recType
 
         SocketServer.UDPServer.__init__(self,server_address,RequestHandlerClass) 
 
@@ -366,17 +413,18 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     allow_reuse_address = True
 
     # Override SocketServer.TCPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, recType, nameservers, ipv6, log):
         self.nametodns   = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
+	self.recType = recType
 
         SocketServer.TCPServer.__init__(self,server_address,RequestHandlerClass) 
         
 # Initialize and start the DNS Server        
-def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
+def start_cooking(interface, nametodns, recType, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
     try:
 
         if logfile: 
@@ -387,9 +435,9 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
 
         if tcp:
             print "[*] DNSChef is running in TCP mode"
-            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, recType, nameservers, ipv6, log)
         else:
-            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, recType, nameservers, ipv6, log)
 
         # Start a thread with the server -- that thread will then start
         # more threads for each request
@@ -462,9 +510,9 @@ if __name__ == "__main__":
     # Main storage of domain filters
     # NOTE: RDMAP is a dictionary map of qtype strings to handling classes
     nametodns = dict()
+    recType = {}
     for qtype in RDMAP.keys():
         nametodns[qtype] = dict()
-    
     # Incorrect or incomplete command line arguments
     if options.fakedomains and options.truedomains:
         print "[!] You can not specify both 'fakedomains' and 'truedomains' parameters."
@@ -501,13 +549,28 @@ if __name__ == "__main__":
         for section in config.sections():
 
             if section in nametodns:
-                for domain,record in config.items(section):
+		print "section", section
+                if section =='A':
+			for domain,record in config.items(section):
+				domain = domain.lower()
+				rinfo = record.split(',')
+				print "rinfo", rinfo
+				record = rinfo[0]
+				print "record", record
+				rtype = rinfo[1]
+				nametodns[section][domain] = record
+				#nametodns[section][domain]['rtype'] = rtype
+				recType[domain] = rtype
+				print "[+] Cooking %s replies for domain %s of type %s with '%s'" % (section,domain,rtype,record)
+				print "Record type", recType
+		else:
+			for domain,record in config.items(section):
 
-                    # Make domain case insensitive
-                    domain = domain.lower()
+                    		# Make domain case insensitive
+                    		domain = domain.lower()
 
-                    nametodns[section][domain] = record
-                    print "[+] Cooking %s replies for domain %s with '%s'" % (section,domain,record)
+                    		nametodns[section][domain] = record
+                    		print "[+] Cooking %s replies for domain %s with '%s'" % (section,domain,record)
             else:
                 print "[!] DNS Record '%s' is not supported. Ignoring section contents." % section
    
@@ -609,4 +672,4 @@ if __name__ == "__main__":
         print "[*] No parameters were specified. Running in full proxy mode"    
 
     # Launch DNSChef
-    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+    start_cooking(interface=options.interface, nametodns=nametodns, recType=recType, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
