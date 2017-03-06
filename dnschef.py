@@ -237,10 +237,18 @@ class DNSHandler():
                 # Proxy the request
                 else:
                     print "[%s] %s: proxying the response of type '%s' for %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname)
-                    if self.server.log: self.server.log.write( "[%s] %s: proxying the response of type '%s' for %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname) )
+                    if self.server.log: self.server.log.write( "[%s] %s: proxying the response of type '%s' for %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname))
 
                     nameserver_tuple = random.choice(self.server.nameservers).split('#')               
                     response = self.proxyrequest(data,*nameserver_tuple)
+
+                    if response and DNSRecord.parse(response).header.a == 0 and ((qtype == "A" and self.server.fake_nxdomain["A"]) or (qtype == "AAAA" and self.server.fake_nxdomain["AAAA"])):
+                        print "[%s] %s: cooking NXDOMAIN response of type '%s' for %s to %s" % (time.strftime("%H:%M:%S"), self.client_address[0], qtype, qname, self.server.fake_nxdomain[qtype])
+                        if self.server.log:
+                            self.server.log.write("[%s] %s: cooking NXDOMAIN response of type '%s' for %s to %s\n" % (time.strftime("%d/%b/%Y:%H:%M:%S %z"), self.client_address[0], qtype, qname, self.server.fake_nxdomain[qtype]))
+                        response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap, qr=1, aa=1, ra=1), q=d.q)
+                        response.add_answer(RR(qname, getattr(QTYPE, qtype), rdata=RDMAP[qtype](self.server.fake_nxdomain[qtype])))
+                        response = response.pack()
                 
         return response         
     
@@ -351,11 +359,12 @@ class TCPHandler(DNSHandler, SocketServer.BaseRequestHandler):
 class ThreadedUDPServer(SocketServer.ThreadingMixIn, SocketServer.UDPServer):
 
     # Override SocketServer.UDPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, fake_nxdomain, ipv6, log):
         self.nametodns  = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
+        self.fake_nxdomain = fake_nxdomain
         self.log = log
 
         SocketServer.UDPServer.__init__(self,server_address,RequestHandlerClass) 
@@ -366,17 +375,18 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     allow_reuse_address = True
 
     # Override SocketServer.TCPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, fake_nxdomain, ipv6, log):
         self.nametodns   = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
+        self.fake_nxdomain = fake_nxdomain
         self.log = log
 
         SocketServer.TCPServer.__init__(self,server_address,RequestHandlerClass) 
         
 # Initialize and start the DNS Server        
-def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
+def start_cooking(interface, nametodns, nameservers, fake_nxdomain=None, tcp=False, ipv6=False, port="53", logfile=None):
     try:
 
         if logfile: 
@@ -387,9 +397,9 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
 
         if tcp:
             print "[*] DNSChef is running in TCP mode"
-            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, fake_nxdomain, ipv6, log)
         else:
-            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, fake_nxdomain, ipv6, log)
 
         # Start a thread with the server -- that thread will then start
         # more threads for each request
@@ -446,6 +456,8 @@ if __name__ == "__main__":
     rungroup = OptionGroup(parser,"Optional runtime parameters.")
     rungroup.add_option("--logfile", action="store", help="Specify a log file to record all activity")
     rungroup.add_option("--nameservers", metavar="8.8.8.8#53 or 4.2.2.1#53#tcp or 2001:4860:4860::8888", default='8.8.8.8', action="store", help='A comma separated list of alternative DNS servers to use with proxied requests. Nameservers can have either IP or IP#PORT format. A randomly selected server from the list will be used for proxy requests when provided with multiple servers. By default, the tool uses Google\'s public DNS server 8.8.8.8 when running in IPv4 mode and 2001:4860:4860::8888 when running in IPv6 mode.')
+    rungroup.add_option("--nxdomain", action="store", metavar="127.0.0.1", default=None, help="Fake IP address for domains returning NXDOMAIN.")
+    rungroup.add_option("--nxdomainv6", action="store", metavar="2001:db8::1", default=None, help="Fake IPv6 address for domains returning NXDOMAIN.")
     rungroup.add_option("-i","--interface", metavar="127.0.0.1 or ::1", default="127.0.0.1", action="store", help='Define an interface to use for the DNS listener. By default, the tool uses 127.0.0.1 for IPv4 mode and ::1 for IPv6 mode.')
     rungroup.add_option("-t","--tcp", action="store_true", default=False, help="Use TCP DNS proxy instead of the default UDP.")
     rungroup.add_option("-6","--ipv6", action="store_true", default=False, help="Run in IPv6 mode.")
@@ -606,7 +618,14 @@ if __name__ == "__main__":
     
     # Proxy all DNS requests
     if not options.fakeip and not options.fakeipv6 and not options.fakemail and not options.fakealias and not options.fakens and not options.file:
-        print "[*] No parameters were specified. Running in full proxy mode"    
+        print "[*] No parameters were specified. Running in full proxy mode"
+
+    # Return fake answers for NXDOMAINs
+    if options.nxdomain:
+        print "[*] Cooking A NXDOMAINs to %s" % options.nxdomain
+    if options.nxdomainv6:
+        print "[*] Cooking AAAA NXDOMAINs to %s" % options.nxdomainv6
+    nxdomain = {"A": options.nxdomain, "AAAA": options.nxdomainv6}
 
     # Launch DNSChef
-    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, fake_nxdomain=nxdomain, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
