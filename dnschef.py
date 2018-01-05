@@ -109,7 +109,7 @@ def loop(domain,asn_baseline,hash_baseline):
 	return result
 
 #Establish a baseline with Google Public DNS and call function "loop"
-def lauch(domain):	
+def launch(domain):	
 	hash_baseline = hashlib.md5()
 	try:
 			#Lookup the 'A' record(s)
