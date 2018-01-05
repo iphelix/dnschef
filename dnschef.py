@@ -100,8 +100,9 @@ async def main(domain,asn_baseline,hash_baseline):
 		return [True, provider]	
 
 # Create the loop			
-def loop(domain,asn_baseline,hash_baseline):
+def Createloop(domain,asn_baseline,hash_baseline):
 	loop = asyncio.new_event_loop()
+	asyncio.set_event_loop(loop)
 	result = loop.run_until_complete(main(domain,asn_baseline,hash_baseline))
 	
 	# return is received, let's close the objects
@@ -132,7 +133,7 @@ def launch(domain):
 	#Ex. NS1 returns IP X,Y and NS2 returns IP Y,X
 	hash_baseline.update(str(sorted(Arecords)).encode('utf-8')) 
 	
-	return loop(domain,asn_baseline,hash_baseline)
+	return Createloop(domain,asn_baseline,hash_baseline)
 
 
 # DNSHandler Mixin. The class contains generic functions to parse DNS requests and
