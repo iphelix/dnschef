@@ -118,7 +118,7 @@ def launch(domain):
 			
 	#Domain did not resolve		
 	except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):  
-			 return [False, Google.Name]
+			 return [False, Google]
 			 
 	# Contain the returned A record(s)		 
 	Arecords = []											
