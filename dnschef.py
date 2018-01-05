@@ -58,71 +58,81 @@ NortonConnectSafe.Sinkhole = '127.0.0.6'
 
 # Query a provider and verify the answer
 async def Query(domain,DnsResolver,asn_baseline,hash_baseline):
-    try:
-        # Get the A record for the specified domain with the specified provider
-        Answers = DnsResolver.query(domain, "A")
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):  # Domain did not resolve
-        return [False, DnsResolver]
+	try:		
+		#Get the A record for the specified domain with the specified provider
+		Answers = DnsResolver.query(domain, "A")		
+		
+	#Domain did not resolve
+	except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):  
+		 return [False, DnsResolver.Name]
 
-    Arecords = []  # List of anwsered IP
-    for rdata in Answers:
-        Arecords.append(rdata.address)
+	#List of returned IP	
+	Arecords = []											
+	for rdata in Answers:
+		Arecords.append(rdata.address)
 
-    # Compare the answer with the baseline to see if record(s) diff$
-    if hashlib.md5(str(sorted(Arecords)).encode('utf-8')
-                   ).hexdigest() != hash_baseline.hexdigest():
-        if (asndb.lookup(sorted(Arecords)[0])[0] != asn_baseline):
-            return [False, DnsResolver]
-
-    return [True, DnsResolver]
+	#Compare the answer with the baseline to see if record(s) differ			
+	if hashlib.md5(str(sorted(Arecords)).encode('utf-8')).hexdigest() != hash_baseline.hexdigest(): 
+	
+		#Record(s) differ, checking if the first one is in the same BGP AS								    
+		if(asndb.lookup(sorted(Arecords)[0])[0] != asn_baseline):									
+			 return [False, DnsResolver.Name]
+			 
+	#Domain is safe		 
+	return [True, DnsResolver.Name]
 
 # Creates the parallels tasks
 async def main(domain,asn_baseline,hash_baseline):
-    Providers = [Strongarm, NortonConnectSafe, ComodoSecure, Quad9, SafeDNS]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        tasks = [
-            asyncio.ensure_future(
-                Query(domain, Providers[i], asn_baseline, hash_baseline))
-            for i in range(len(Providers))
-        ]
-
-        for IsSafe, provider in await asyncio.gather( * tasks):
-            if IsSafe == False:  # One DNS provider in the function 'check' returned False, so the domain is unsafe
-                return [False, provider]
-            pass
-        # Function 'check' never returned False at this point, so the domain is
-        # safe
-        return [True, provider]
+	Providers = [Strongarm, NortonConnectSafe, ComodoSecure, Quad9, SafeDNS]
+	with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+		tasks = [
+			asyncio.ensure_future(Query(domain, Providers[i],asn_baseline,hash_baseline))
+			for i in range(len(Providers))
+		]
+	   
+		for response,provider in await asyncio.gather(*tasks):
+			#One DNS provider in the function 'Query' returned False, so the domain is unsafe
+			if response == False:		
+				return [False, provider]
+			pass
+			
+		#Function 'Query' never returned False at this point, the domain is safe
+		return [True, provider]	
 
 # Create the loop			
 def loop(domain,asn_baseline,hash_baseline):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    result = loop.run_until_complete(main(domain, asn_baseline, hash_baseline))
-    # A return is received, let's close the objects
-    loop.run_until_complete(loop.shutdown_asyncgens())
-    return result
-
+	loop = asyncio.get_event_loop()
+	result = loop.run_until_complete(main(domain,asn_baseline,hash_baseline))
+	
+	# return is received, let's close the objects
+	loop.run_until_complete(loop.shutdown_asyncgens())			
+	return result
 
 #Establish a baseline with Google Public DNS and call function "loop"
-def lauch(domain):
-    hash_baseline = hashlib.md5()
-    print('looking at : ' + domain)
-    try:
-        Answers_Google = Google.query(domain, "A")  # Lookup the 'A' record(s)
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):  # Domain did not resolve
-        return [False, Google]
-
-    # Contain the returned A record(s)
-    Arecords = []
-    for rdata in Answers_Google:
-        Arecords.append(rdata.address)
-
-    # Fingerprint of the anwser is the sorted list of A record(s)
-    hash_baseline.update(str(sorted(Arecords)).encode('utf-8'))
-    # Looking the ASN of the first A record (sorted)
-    asn_baseline = asndb.lookup(sorted(Arecords)[0])[0]
-    return loop(domain, asn_baseline, hash_baseline)
+def lauch(domain):	
+	hash_baseline = hashlib.md5()
+	try:
+			#Lookup the 'A' record(s)
+			Answers_Google = Google.query(domain, "A") 		
+			
+	#Domain did not resolve		
+	except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):  
+			 return [False, Google.Name]
+			 
+	# Contain the returned A record(s)		 
+	Arecords = []											
+	for rdata in Answers_Google: 
+		Arecords.append(rdata.address)
+	
+	#Looking the ASN of the first A record (sorted)
+	asn_baseline = asndb.lookup(sorted(Arecords)[0])[0]	
+	
+	#MD5 Fingerprint of the anwser is the sorted list of A record(s)
+	#Because of the round-robin often used in replies.
+	#Ex. NS1 returns IP X,Y and NS2 returns IP Y,X
+	hash_baseline.update(str(sorted(Arecords)).encode('utf-8')) 
+	
+	return loop(domain,asn_baseline,hash_baseline)
 
 
 # DNSHandler Mixin. The class contains generic functions to parse DNS requests and
