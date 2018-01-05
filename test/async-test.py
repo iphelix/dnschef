@@ -6,9 +6,17 @@ import asyncio
 import concurrent.futures
 import time
 import sys
+import os.path
 
 # The database to correlate IP with ASN
-asndb = pyasn.pyasn('ipasn_20171223.dat')
+ip_to_as = "ipasn_20171223.dat"
+asndb = ""
+
+if os.path.exists(ip_to_as):
+    asndb = pyasn.pyasn(ip_to_as)
+else:
+    print(ip_to_as + " is not there! I need a ip to AS database...")
+    exit(0)
 
 # Providers variable definition
 Google = dns.resolver.Resolver()
