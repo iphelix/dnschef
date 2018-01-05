@@ -90,9 +90,9 @@ async def main(domain,asn_baseline,hash_baseline):
 			for i in range(len(Providers))
 		]
 	   
-		for response,provider in await asyncio.gather(*tasks):
+		for IsSafe,provider in await asyncio.gather(*tasks):
 			#One DNS provider in the function 'Query' returned False, so the domain is unsafe
-			if response == False:		
+			if IsSafe == False:		
 				return [False, provider]
 			pass
 			
@@ -101,7 +101,7 @@ async def main(domain,asn_baseline,hash_baseline):
 
 # Create the loop			
 def loop(domain,asn_baseline,hash_baseline):
-	loop = asyncio.get_event_loop()
+	loop = asyncio.new_event_loop()
 	result = loop.run_until_complete(main(domain,asn_baseline,hash_baseline))
 	
 	# return is received, let's close the objects
