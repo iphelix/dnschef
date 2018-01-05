@@ -85,12 +85,14 @@ async def main(domain,asn_baseline,hash_baseline):
 		
 # Create the loop			
 def loop(domain,asn_baseline,hash_baseline):
-	loop = asyncio.get_event_loop()
-	result = loop.run_until_complete(main(domain,asn_baseline,hash_baseline))
-	
-	# return is received, let's close the objects
-	loop.run_until_complete(loop.shutdown_asyncgens())			
-	return result
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result = loop.run_until_complete(main(domain, asn_baseline, hash_baseline))
+
+    # A return is received, let's close the objects
+    loop.run_until_complete(loop.shutdown_asyncgens())
+
+    return result
 	
 #Establish a baseline with Google Public DNS and call function "loop"
 def lauch(domain):	
