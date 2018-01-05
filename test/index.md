@@ -10,3 +10,8 @@ You can add as many threat blocking DNS providers as you want to the script, tho
 * [dnspython](https://pypi.python.org/pypi/dnspython)
 * [asyncio](https://docs.python.org/3/library/asyncio.html)
 * [pyasn](https://github.com/hadiasghari/pyasn)
+
+## IP to ASN database
+You also need to provide one IP to ASN database for pyasn. 
+
+I strongly suggest that you update the database with [the following script](https://github.com/hadiasghari/pyasn/blob/master/pyasn-utils/pyasn_util_download.py)
