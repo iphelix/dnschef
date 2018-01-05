@@ -132,7 +132,7 @@ domains_file = sys.argv[1]
 domains = []
 with open(domains_file) as file:
     for line in file: 
-        domains.append(line)
+        domains.append(line.rstrip('\n'))
 
 # Loop created to test the program with the list of malicious domains provided
 i=0
@@ -144,10 +144,10 @@ while i<len(domains):
 	safe,Provider = lauch(domains[i])
 	
 	if(safe):
-		print (domains[i].rstrip('\n') , "--> safe") 
+		print (domains[i], "--> safe") 
 		nb_safe+=1
 	else:
-		print (domains[i].rstrip('\n') , "--> unsafe, filtered by" , Provider)
+		print (domains[i], "--> unsafe, filtered by" , Provider)
 		nb_blocked+=1	
 	i+=1
 	
