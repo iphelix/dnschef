@@ -3,10 +3,8 @@
 
 from optparse import OptionParser, OptionGroup
 from configparser import ConfigParser
-
 from dnslib import *
 from IPy import IP
-
 import threading
 import random
 import operator
@@ -58,7 +56,8 @@ ComodoSecure.Sinkhole = '127.0.0.5'
 NortonConnectSafe.nameservers = ['199.85.126.30', '199.85.127.30']
 NortonConnectSafe.Sinkhole = '127.0.0.6'
 
-async def check(domain, DnsResolver, asn_baseline, hash_baseline):
+# Query a provider and verify the answer
+async def Query(domain,DnsResolver,asn_baseline,hash_baseline):
     try:
         # Get the A record for the specified domain with the specified provider
         Answers = DnsResolver.query(domain, "A")
@@ -77,13 +76,13 @@ async def check(domain, DnsResolver, asn_baseline, hash_baseline):
 
     return [True, DnsResolver]
 
-
-async def main(domain, asn_baseline, hash_baseline):
+# Creates the parallels tasks
+async def main(domain,asn_baseline,hash_baseline):
     Providers = [Strongarm, NortonConnectSafe, ComodoSecure, Quad9, SafeDNS]
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         tasks = [
             asyncio.ensure_future(
-                check(domain, Providers[i], asn_baseline, hash_baseline))
+                Query(domain, Providers[i], asn_baseline, hash_baseline))
             for i in range(len(Providers))
         ]
 
@@ -95,8 +94,8 @@ async def main(domain, asn_baseline, hash_baseline):
         # safe
         return [True, provider]
 
-# Create the loop
-def lookup(domain, asn_baseline, hash_baseline):
+# Create the loop			
+def loop(domain,asn_baseline,hash_baseline):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     result = loop.run_until_complete(main(domain, asn_baseline, hash_baseline))
@@ -105,8 +104,8 @@ def lookup(domain, asn_baseline, hash_baseline):
     return result
 
 
-#########Establish a baseline with Google (8.8.8.8)#####
-def launch(domain):
+#Establish a baseline with Google Public DNS and call function "loop"
+def lauch(domain):
     hash_baseline = hashlib.md5()
     print('looking at : ' + domain)
     try:
@@ -123,16 +122,11 @@ def launch(domain):
     hash_baseline.update(str(sorted(Arecords)).encode('utf-8'))
     # Looking the ASN of the first A record (sorted)
     asn_baseline = asndb.lookup(sorted(Arecords)[0])[0]
-    return lookup(domain, asn_baseline, hash_baseline)
-
-
-######################################################
+    return loop(domain, asn_baseline, hash_baseline)
 
 
 # DNSHandler Mixin. The class contains generic functions to parse DNS requests and
 # calculate an appropriate response based on user parameters.
-
-
 class DNSHandler:
 
     def parse(self, data):
