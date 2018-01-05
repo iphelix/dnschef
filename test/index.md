@@ -15,3 +15,11 @@ You can add as many threat blocking DNS providers as you want to the script, tho
 You also need to provide one IP to ASN database for pyasn. 
 
 I strongly suggest that you update the database with [the following script](https://github.com/hadiasghari/pyasn/blob/master/pyasn-utils/pyasn_util_download.py)
+
+## Usage
+
+async-test.py domains.txt
+
+### domains.txt
+
+The list of domains to lookup. Must be one per line.
