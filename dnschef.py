@@ -64,7 +64,7 @@ async def Query(domain,DnsResolver,asn_baseline,hash_baseline):
 		
 	#Domain did not resolve
 	except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):  
-		 return [False, DnsResolver.Name]
+		 return [False, DnsResolver]
 
 	#List of returned IP	
 	Arecords = []											
@@ -76,10 +76,10 @@ async def Query(domain,DnsResolver,asn_baseline,hash_baseline):
 	
 		#Record(s) differ, checking if the first one is in the same BGP AS								    
 		if(asndb.lookup(sorted(Arecords)[0])[0] != asn_baseline):									
-			 return [False, DnsResolver.Name]
+			 return [False, DnsResolver]
 			 
 	#Domain is safe		 
-	return [True, DnsResolver.Name]
+	return [True, DnsResolver]
 
 # Creates the parallels tasks
 async def main(domain,asn_baseline,hash_baseline):
