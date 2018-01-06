@@ -41,7 +41,7 @@ Script:
 ```
 outlook.com is safe, proxying...
 ```
-## Output when receiving a request for an unsafe domain
+## Output when receiving requests for unsafe domains
 ### test 1
 Client:
 ```
