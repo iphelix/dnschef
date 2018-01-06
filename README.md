@@ -55,16 +55,16 @@ stat-dns.com Spoofing because it is filtered by NortonConnectSafe
 ### test 2
 Client:
 ```
-[root@localhost]# dig rixrax.com
+[root@localhost]# dig thephonecompany.com
 ...
 ;; ANSWER SECTION:
-rixrax.com.             5       IN      CNAME   drop.local.
-drop.local.             8600    IN      A       192.168.1.220
+thephonecompany.com.    5       IN      CNAME   quad9drop.local.
+quad9drop.local.        8600    IN      A       192.168.1.220
 ...
 ```
 Script:
 ```
-rixrax.com Spoofing because it is filtered by Strongarm
+thephonecompany.com Spoofing because it is filtered by Quad9
 ```
 
 
