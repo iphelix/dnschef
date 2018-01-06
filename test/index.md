@@ -28,7 +28,7 @@ I strongly suggest that you update the database with [the following script](http
 async-test.py domains.txt
 ## Output
 ```
-[root@localhost tmp]# python3.6 async-test.py domains.txt 
+[root@localhost]# python3.6 async-test.py domains.txt 
 google.com --> safe
 cnn.com --> safe
 stat-dns.com --> unsafe, filtered by NortonConnectSafe
