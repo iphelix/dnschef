@@ -13,7 +13,7 @@ It will verify 'A' queries and forward directly all other type of requests. The 
     [*] No parameters were specified. Running in full proxy mode
 ```
 ## Output when proxying safe domains
-### test 1
+### Test 1
 Client:
 ```
 [root@localhost]# ping github.com
@@ -25,7 +25,7 @@ github.com is safe, proxying...
 Filtering PTR requests not supported, Forwarding...
 [02:27:25] 127.0.0.1: proxying the response of type 'PTR' for 112.253.30.192.in-addr.arpa
 ```
-### test 2
+### Test 2
 Client:
 ```
 [root@localhost]# dig outlook.com
@@ -42,7 +42,7 @@ Script:
 outlook.com is safe, proxying...
 ```
 ## Output when receiving requests for unsafe domains
-### test 1
+### Test 1
 Client:
 ```
 [root@localhost]# ping stat-dns.com
@@ -52,7 +52,7 @@ Script:
 ```
 stat-dns.com Spoofing because it is filtered by NortonConnectSafe
 ```
-### test 2
+### Test 2
 Client:
 ```
 [root@localhost]# dig thephonecompany.com
