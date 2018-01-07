@@ -437,7 +437,10 @@ Full scripts and configuration files are on my [GitHub page](https://github.com/
 
 ### References
 [BIND9 - Response Policy Zone Configuration](http://www.zytrax.com/books/dns/ch7/rpz.html)
+
 [BIND 9 Administrator Reference
 Manual](https://ftp.isc.org/isc/bind9/9.12.0a1/doc/arm/Bv9ARM.pdf)
+
 [dnsrpz.info](https://dnsrpz.info)
+
 [lists.dns-oarc.net](https://lists.dns-oarc.net/pipermail/dns-operations/2017-October/016858.html)
