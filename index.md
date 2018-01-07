@@ -62,7 +62,7 @@ For this project, I compiled BIND 9.12. The procedure is well detailed [here](ht
 The only difference I made is at the compilation time. To use the DNS Response Policy Service (DNSRPS) feature in version 9.12, we need to add the **enable-dnsrps** flag:
 
 ```markdown
-sudo ./configure --prefix=/usr \--sysconfdir=/etc \--enable-threads \--localstatedir=/var/state \--with-libtool \--enable-dnsrps
+./configure --prefix=/usr \--sysconfdir=/etc \--enable-threads \--localstatedir=/var/state \--with-libtool \--enable-dnsrps
 ```
 After that we can start the server:
 ```markdown
