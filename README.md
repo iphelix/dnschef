@@ -59,7 +59,7 @@ Client:
 ...
 ;; ANSWER SECTION:
 thephonecompany.com.    5       IN      CNAME   quad9drop.sinkhole.
-quad9drop.sinkhole.        8600    IN      A       192.168.1.220
+quad9drop.sinkhole.     8600    IN      A       192.168.1.220
 ...
 ```
 Script:
