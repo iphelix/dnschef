@@ -11,4 +11,4 @@ $TTL 300
 
 ; IP Trigger Local-Data Action
 ; any answer containing IP range
-32.3.0.0.127.rpz-ip CNAME strongarmdrop.local.
+32.3.0.0.127.rpz-ip CNAME strongarmdrop.sinkhole.

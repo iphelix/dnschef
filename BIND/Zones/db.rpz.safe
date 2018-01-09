@@ -43,4 +43,4 @@ pgl.yoyo.org CNAME rpz-passthru.
 yoyo.org CNAME rpz-passthru.
 
 ; My sinkhole domain
-drop.local CNAME rpz-passthru.
+drop.sinkhole CNAME rpz-passthru.

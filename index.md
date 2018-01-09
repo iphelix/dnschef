@@ -25,28 +25,27 @@ To get a better idea of what I'm going to be blocking, I used [bind-adblock](htt
 It is always recommended to have a zone with frequently used domains as a "pass-thru" zone, so queries for those domains will not have to be compared with all blacklists. I used the Alexa top 5000 websites as my whitelist. Taking more than that could include [malicious websites](https://blog.sucuri.net/2011/03/alexa-top-100k-sites-the-malware-blues.html). [This Github page](https://github.com/secure411dotorg/rpzone/tree/master/scripts) contains scripts that allows us to easily download the Alexa top 1 million websites, cut the list to 5000 and then add the proper RPZ syntax so it can be used in a BIND zone file. 
 
 #### Sinkhole domain
-I created a local domain ***.local*** that will resolve to this same server for the sinkholing of blocked domains. In an RPZ file, it's easier to point each domain we want to block to a ***walled garden*** (with CNAME) instead of using a hardcoded IP address (with an A record). This way, if the server change its IP address, or if we want to redirect the traffic elsewhere, we would only need to edit our ***.local*** zone.
+I created a local domain ***.sinkhole*** that will resolve to this same server for the sinkholing of blocked domains. In an RPZ file, it's easier to point each domain we want to block to a ***walled garden*** (with CNAME) instead of using a hardcoded IP address (with an A record). This way, if the server change its IP address, or if we want to redirect the traffic elsewhere, we would only need to edit our ***.sinkhole*** zone.
 
 The blacklist zone will have entries like this in **/var/named/db.rpz.blacklist**:
 ```markdown
 ...
-bad-domain1 IN CNAME drop.local.
-bad-domain2 IN CNAME drop.local.
+bad-domain1 IN CNAME drop.sinkhole.
+bad-domain2 IN CNAME drop.sinkhole.
 ...
 ```
-To make it work, we need to create the ***.local*** zone first in **/var/named/db.local**:
+To make it work, we need to create the ***.sinkhole*** zone first in **/var/named/db.sinkhole**:
 ```markdown
-@       IN      SOA     local.  root.local. (2 604800 86400 2419200 604800);
-@       IN      NS      ns1.local.
+@       IN      SOA     sinkhole.  root.sinkhole. (2 604800 86400 2419200 604800);
+@       IN      NS      ns1.sinkhole.
 @ IN A 192.168.1.220
-ns1       IN    A       192.168.1.220
 * A 192.168.1.220
 ```
-The zone file will match any request to ***.local*** to the local server. We then add it to the BIND configuration file **/etc/named.conf**:
+The zone file will match any request to ***.sinkhole*** to the local server. We then add it to the BIND configuration file **/etc/named.conf**:
 ```markdown
-zone "local." {
+zone "sinkhole." {
 		type master;
-		file "/var/named/db.local";
+		file "/var/named/db.sinkhole";
 		allow-update { none; };
 		allow-transfer { none; };
 		allow-query { trusted-acl;};
@@ -405,14 +404,14 @@ zone "rpz.comodosecure" {
 ```
 Each of those zones will contain (in their zone file) an IP Trigger policy. This policy will match the sinkhole IP address belonging to its associated provider. For example, **/var/named/db.rpz.nortonconnectsafe** contains:
 ``` 
-$TTL 800 @ IN SOA nortonconnectsafe.local. nortonconnectsafe.local. (201702121 3600 600 86400 600) 
+$TTL 800 @ IN SOA nortonconnectsafe.sinkhole. nortonconnectsafe.sinkhole. (201702121 3600 600 86400 600) 
 @ IN NS   LOCALHOST.
 
 ; IP Trigger Local-Data Action
 ; any answer containing IP range
-32.6.0.0.127.rpz-ip CNAME nortonconnectsafedrop.local.
+32.6.0.0.127.rpz-ip CNAME nortonconnectsafedrop.sinkhole.
 ```
-So everytime BIND receives an answer from this IP (**127.0.0.6** in this case), it will transfer it to our **walled garden** ***nortonconnectsafedrop.local*** which is resolving to this server.
+So everytime BIND receives an answer from this IP (**127.0.0.6** in this case), it will transfer it to our **walled garden** ***nortonconnectsafedrop.sinkhole*** which is resolving to this server.
 
 This way, a user browsing to a blocked domain will:
 - Generate a log entry in BIND RPZ log file telling which provider has denied the query
