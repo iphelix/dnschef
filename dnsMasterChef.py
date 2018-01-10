@@ -63,6 +63,9 @@ ComodoSecure.Sinkhole = '127.0.0.5'
 NortonConnectSafe.nameservers = ['199.85.126.30', '199.85.127.30']
 NortonConnectSafe.Sinkhole = '127.0.0.6'
 
+Providers = [Strongarm, NortonConnectSafe, ComodoSecure, Quad9, SafeDNS]
+NumberOfProviders = len(Providers)
+
 # Query a provider and verify the answer
 async def Query(domain,DnsResolver,asn_baseline,hash_baseline):
 	try:		
@@ -89,12 +92,11 @@ async def Query(domain,DnsResolver,asn_baseline,hash_baseline):
 	return [True, DnsResolver]
 
 # Creates the parallels tasks
-async def main(domain,asn_baseline,hash_baseline):
-	Providers = [Strongarm, NortonConnectSafe, ComodoSecure, Quad9, SafeDNS]
-	with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+async def main(domain,asn_baseline,hash_baseline):	
+	with concurrent.futures.ThreadPoolExecutor(max_workers=NumberOfProviders) as executor:
 		tasks = [
 			asyncio.ensure_future(Query(domain, Providers[i],asn_baseline,hash_baseline))
-			for i in range(len(Providers))
+			for i in range(NumberOfProviders)
 		]
 	   
 		for IsSafe,provider in await asyncio.gather(*tasks):
