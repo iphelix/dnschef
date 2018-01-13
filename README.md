@@ -4,6 +4,13 @@ DNSMasterChef is a POC based on the original project DNSChef. I integrated my pr
 
 It will verify 'A' queries and forward directly all other type of requests. The script listen locally on port #5353, so you can forward BIND requests to it.
 
+## Installation
+The script work fine with Python3.6
+You will need the following python packages installed: dnslib, pyasn, IPy, dnspython
+```sh
+pip3.6 install -r requirements.txt
+```
+
 ## Running DNSMasterChef
 ```
     [root@localhost]# python3.6 dnsMasterChef.py
