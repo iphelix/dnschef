@@ -1,11 +1,12 @@
+ ```
       _                _          __ 
      | | version 0.2  | |        / _|
    __| |_ __  ___  ___| |__   ___| |_ 
   / _` | '_ \/ __|/ __| '_ \ / _ \  _|
  | (_| | | | \__ \ (__| | | |  __/ |  
   \__,_|_| |_|___/\___|_| |_|\___|_|
-
-       D O C U M E N T A T I O N
+      D O C U M E N T A T I O N
+```
 
 The latest version of this document can be obtained from http://thesprawl.org/projects/dnschef/
 
