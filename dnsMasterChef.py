@@ -26,7 +26,7 @@ import concurrent.futures
 from datetime import datetime
 
 # The database to correlate IP with ASN
-ip_to_as = "ipasn_201801.dat"
+ip_to_as = "ipasn_201803.dat"
 asndb = ""
 
 if os.path.exists(ip_to_as):
