@@ -1,0 +1,46 @@
+$TTL 300
+
+@               IN SOA  localhost. need.to.know.only. (
+                       201702121 ; Serial number
+                        3600       ; refresh 1 hour
+                        600        ; retry 10 minutes
+                        86400      ; expiry 1 week
+                        600 )      ; min ttl 10 minutes
+
+@ IN NS   LOCALHOST.
+
+; OpenDNS IPs
+
+32.208.67.222.222.rpz-ip IN CNAME rpz-passthru.
+32.208.67.220.220.rpz-ip IN CNAME rpz-passthru.
+
+; Whitelist of domains that provides Blacklists
+
+openphish.com CNAME rpz-passthru.
+v.firebog.net CNAME rpz-passthru.
+firebog.net CNAME rpz-passthru.
+joewein.net CNAME rpz-passthru.
+www.joewein.net CNAME rpz-passthru.
+isc.sans.edu CNAME rpz-passthru.
+sans.edu CNAME rpz-passthru.
+amazonaws.com CNAME rpz-passthru.
+s3.amazonaws.com CNAME rpz-passthru.
+cybercrime-tracker.net CNAME rpz-passthru.
+squidblacklist.org CNAME rpz-passthru.
+www.squidblacklist.org CNAME rpz-passthru.
+sysctl.org CNAME rpz-passthru.
+zeustracker.abuse.ch CNAME rpz-passthru.
+abuse.ch CNAME rpz-passthru.
+www.malwaredomainlist.com CNAME rpz-passthru.
+malwaredomainlist.com CNAME rpz-passthru.
+someonewhocares.org CNAME rpz-passthru.
+adaway.org CNAME rpz-passthru.
+winhelp2002.mvps.org CNAME rpz-passthru.
+mvps.org CNAME rpz-passthru.
+mirror1.malwaredomains.com CNAME rpz-passthru.
+malwaredomains.com CNAME rpz-passthru.
+pgl.yoyo.org CNAME rpz-passthru.
+yoyo.org CNAME rpz-passthru.
+
+; My sinkhole domain
+drop.sinkhole CNAME rpz-passthru.

@@ -1,0 +1,4 @@
+dnslib==0.9.7
+pyasn==1.6.0b1
+IPy==0.83
+dnspython==1.15.0

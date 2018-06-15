@@ -1,0 +1,14 @@
+$TTL 300
+
+@               IN SOA  localhost. need.to.know.only. (
+                       201702121 ; Serial number
+                        3600       ; refresh 1 hour
+                        600        ; retry 10 minutes
+                        86400      ; expiry 1 week
+                        600 )      ; min ttl 10 minutes
+
+@ IN NS   LOCALHOST.
+
+; IP Trigger Local-Data Action
+; any answer containing IP range
+32.5.0.0.127.rpz-ip CNAME comodosecuredrop.sinkhole.
