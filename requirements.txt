@@ -1,0 +1,2 @@
+-i https://pypi.org/simple
+dnslib==0.9.10

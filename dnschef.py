@@ -38,7 +38,7 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 
 from dnslib import *
-from IPy import IP
+from ipaddress import ip_address
 
 import logging
 import threading
@@ -128,9 +128,7 @@ class DNSHandler():
 
                     # IPv6 needs additional work before inclusion:
                     if qtype == "AAAA":
-                        ipv6 = IP(fake_record)
-                        ipv6_bin = ipv6.strBin()
-                        ipv6_hex_tuple = [int(ipv6_bin[i:i+8],2) for i in range(0,len(ipv6_bin),8)]
+                        ipv6_hex_tuple = list(map(int, ip_address(fake_record).packed))
                         response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](ipv6_hex_tuple)))
 
                     elif qtype == "SOA":
@@ -203,9 +201,7 @@ class DNSHandler():
                             # NOTE: RDMAP is a dictionary map of qtype strings to handling classses
                             # IPv6 needs additional work before inclusion:
                             if qtype == "AAAA":
-                                ipv6 = IP(fake_record)
-                                ipv6_bin = ipv6.strBin()
-                                fake_record = [int(ipv6_bin[i:i+8],2) for i in range(0,len(ipv6_bin),8)]
+                                fake_record = list(map(int, ip_address(fake_record).packed))
 
                             elif qtype == "SOA":
                                 mname,rname,t1,t2,t3,t4,t5 = fake_record.split(" ")

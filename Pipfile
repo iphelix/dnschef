@@ -7,4 +7,3 @@ verify_ssl = true
 
 [packages]
 dnslib = "*"
-ipy = "*"

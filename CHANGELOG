@@ -3,6 +3,7 @@ Version 0.4
 * Ported to Python 3.6+
 * Made everything a bit more PEP8 compliant
 * Improved logging
+* Removed IPy library (replaced with built-in ipaddress library)
 
 Version 0.3
 
