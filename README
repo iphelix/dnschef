@@ -1,5 +1,5 @@
       _                _          __ 
-     | | version 0.2  | |        / _|
+     | | version 0.4  | |        / _|
    __| |_ __  ___  ___| |__   ___| |_ 
   / _` | '_ \/ __|/ __| '_ \ / _ \  _|
  | (_| | | | \__ \ (__| | | |  __/ |  
@@ -335,7 +335,7 @@ Internal architecture
 
 Here is some information on the internals in case you need to adapt the tool for your needs. DNSChef is built on top of the SocketServer module and uses threading to help process multiple requests simultaneously. The tool is designed to listen on TCP or UDP ports (default is port 53) for incoming requests and forward those requests when necessary to a real DNS server over UDP.
 
-The excellent [dnslib library](https://bitbucket.org/paulc/dnslib/wiki/Home) is used to dissect and reassemble DNS packets. It is particularly useful when generating response packets based on queries. [IPy](https://github.com/haypo/python-ipy/) is used for IPv6 addresses manipulation. Both libraries come bundled with DNSChef to ease installation.
+The excellent [dnslib library](https://bitbucket.org/paulc/dnslib/wiki/Home) is used to dissect and reassemble DNS packets. It is particularly useful when generating response packets based on queries.
 
 DNSChef is capable of modifing queries for records of type "A", "AAAA", "MX", "CNAME", "NS", "TXT", "PTR", "NAPTR", "SOA", "ANY". It is very easy to expand or modify behavior for any record. Simply add another **if qtype == "RECORD TYPE")** entry and tell it what to reply with.
 

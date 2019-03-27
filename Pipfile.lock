@@ -1,0 +1,26 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "94c22af0f0b8b36d88ea6dde717287014aeea377217798e5ad2a8cc8894fba40"
+        },
+        "pipfile-spec": 6,
+        "requires": {},
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "dnslib": {
+            "hashes": [
+                "sha256:666bf55274a630a2925411c4ea9ca724529299bbe70f91979ad99c72c5e5099e"
+            ],
+            "index": "pypi",
+            "version": "==0.9.10"
+        }
+    },
+    "develop": {}
+}
