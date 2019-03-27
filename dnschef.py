@@ -461,8 +461,9 @@ if __name__ == "__main__":
     fakegroup.add_argument('--fakens', metavar="ns.fake.com", help='NS name to use for matching DNS queries. If you use this parameter without specifying domain names, then all \'NS\' queries will be spoofed. Consider using --file argument if you need to define more than one NS record.')
     fakegroup.add_argument('--file', help="Specify a file containing a list of DOMAIN=IP pairs (one pair per line) used for DNS responses. For example: google.com=1.1.1.1 will force all queries to 'google.com' to be resolved to '1.1.1.1'. IPv6 addresses will be automatically detected. You can be even more specific by combining --file with other arguments. However, data obtained from the file will take precedence over others.")
 
-    parser.add_argument('--fakedomains', metavar="thesprawl.org,google.com", help='A comma separated list of domain names which will be resolved to FAKE values specified in the the above parameters. All other domain names will be resolved to their true values.')
-    parser.add_argument('--truedomains', metavar="thesprawl.org,google.com", help='A comma separated list of domain names which will be resolved to their TRUE values. All other domain names will be resolved to fake values specified in the above parameters.')
+    mexclusivegroup = parser.add_mutually_exclusive_group()
+    mexclusivegroup.add_argument('--fakedomains', metavar="thesprawl.org,google.com", help='A comma separated list of domain names which will be resolved to FAKE values specified in the the above parameters. All other domain names will be resolved to their true values.')
+    mexclusivegroup.add_argument('--truedomains', metavar="thesprawl.org,google.com", help='A comma separated list of domain names which will be resolved to their TRUE values. All other domain names will be resolved to fake values specified in the above parameters.')
 
     rungroup = parser.add_argument_group("Optional runtime parameters.")
     rungroup.add_argument("--logfile", metavar="FILE", help="Specify a log file to record all activity")
@@ -485,12 +486,7 @@ if __name__ == "__main__":
     for qtype in list(RDMAP.keys()):
         nametodns[qtype] = dict()
 
-    # Incorrect or incomplete command line arguments
-    if options.fakedomains and options.truedomains:
-        log.error("You can not specify both 'fakedomains' and 'truedomains' parameters.")
-        sys.exit(0)
-
-    elif not (options.fakeip or options.fakeipv6) and (options.fakedomains or options.truedomains):
+    if not (options.fakeip or options.fakeipv6) and (options.fakedomains or options.truedomains):
         log.error("You have forgotten to specify which IP to use for fake responses")
         sys.exit(0)
 
