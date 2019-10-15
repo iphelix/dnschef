@@ -190,7 +190,7 @@ class DNSHandler():
 
                     response = response.pack()
 
-                elif qtype == "*" and not None in list(fake_records.values()):
+                elif qtype == "*" or qtype == "ANY" and not None in list(fake_records.values()):
                     log.info(f"{self.client_address[0]}: cooking the response of type 'ANY' for {qname} with all known fake records")
 
                     response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap,qr=1, aa=1, ra=1), q=d.q)
