@@ -439,9 +439,7 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
     except Exception as e:
         log.error(f"Failed to start the server: {e}")
 
-
-if __name__ == "__main__":
-
+def main():
     header  = "          _                _          __  \n"
     header += "         | | version %s  | |        / _| \n" % DNSCHEF_VERSION
     header += "       __| |_ __  ___  ___| |__   ___| |_ \n"
@@ -626,3 +624,7 @@ if __name__ == "__main__":
 
     # Launch DNSChef
     start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+
+
+if __name__ == '__main__':
+    main()
