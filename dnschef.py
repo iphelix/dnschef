@@ -51,6 +51,7 @@ import os
 import binascii
 import string
 import base64
+import re
 
 
 class DNSChefFormatter(logging.Formatter):
@@ -266,7 +267,7 @@ class DNSHandler():
                 else:
                     log.info(f"{self.client_address[0]}: proxying the response of type '{qtype}' for {qname}")
 
-                    nameserver_tuple = random.choice(self.server.nameservers).split('#')
+                    nameserver_tuple = re.split('[#:]',random.choice(self.server.nameservers))
                     response = self.proxyrequest(data, *nameserver_tuple)
 
         return response
