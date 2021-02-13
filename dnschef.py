@@ -284,7 +284,7 @@ class DNSHandler():
 
         # HACK: It is important to search the nametodns dictionary before iterating it so that
         # global matching ['*.*.*.*.*.*.*.*.*.*'] will match last. Use sorting for that.
-        for domain,host in sorted(iter(nametodns.items()), key=operator.itemgetter(1)):
+        for domain,host in sorted(iter(nametodns.items()), key=lambda x: x[1] or ""):
 
             # NOTE: It is assumed that domain name was already lowercased
             #       when it was loaded through --file, --fakedomains or --truedomains
