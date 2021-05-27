@@ -190,6 +190,8 @@ class DNSHandler():
 
                     response = response.pack()
 
+                    self.server.count -= 1
+
                 elif qtype == "*" and not None in list(fake_records.values()):
                     log.info(f"{self.client_address[0]}: cooking the response of type 'ANY' for {qname} with all known fake records")
 
@@ -358,6 +360,11 @@ class UDPHandler(DNSHandler, socketserver.BaseRequestHandler):
         if response:
             socket.sendto(response, self.client_address)
 
+        if self.server.count == 0:
+            self.server.shutdown()
+            log.info("DNSChef is shutting down.")
+            sys.exit()
+
 # TCP DNS Handler for incoming requests
 class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
 
@@ -375,15 +382,21 @@ class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
             length = binascii.unhexlify("%04x" % len(response))
             self.request.sendall(length + response)
 
+        if self.server.count == 0:
+            self.server.shutdown()
+            log.info("DNSChef is shutting down.")
+            sys.exit()
+
 class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
     # Override SocketServer.UDPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log, count):
         self.nametodns  = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
+        self.count = count
 
         socketserver.UDPServer.__init__(self, server_address, RequestHandlerClass)
 
@@ -393,17 +406,18 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
     # Override SocketServer.TCPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log, count):
         self.nametodns   = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
+        self.count = count
 
         socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass)
 
 # Initialize and start the DNS Server
-def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
+def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None, count=-1):
     try:
 
         if logfile:
@@ -416,9 +430,9 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
 
         if tcp:
             log.info("DNSChef is running in TCP mode")
-            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log, count)
         else:
-            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log, count)
 
         # Start a thread with the server -- that thread will then start
         # more threads for each request
@@ -429,7 +443,8 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
         server_thread.start()
 
         # Loop in the main thread
-        while True: time.sleep(100)
+        while server.count != 0:
+            time.sleep(0.5)
 
     except (KeyboardInterrupt, SystemExit):
         server.shutdown()
@@ -472,6 +487,7 @@ if __name__ == "__main__":
     rungroup.add_argument("-t","--tcp", action="store_true", default=False, help="Use TCP DNS proxy instead of the default UDP.")
     rungroup.add_argument("-6","--ipv6", action="store_true", default=False, help="Run in IPv6 mode.")
     rungroup.add_argument("-p","--port", metavar="53", default="53", help='Port number to listen for DNS requests.')
+    rungroup.add_argument("-c","--count", metavar="-1", default="-1", help='Number of DNS requests to fake records that should be answered.')
     rungroup.add_argument("-q", "--quiet", action="store_false", dest="verbose", default=True, help="Don't show headers.")
 
     options = parser.parse_args()
@@ -493,6 +509,14 @@ if __name__ == "__main__":
     # Notify user about alternative listening port
     if options.port != "53":
         log.info(f"Listening on an alternative port {options.port}")
+
+    try:
+        options.count = int(options.count)
+    except ValueError:
+        options.count = -1
+    # Notify user about alternative number of DNS requests that will be answered
+    if options.count != -1:
+        log.info(f"Only {options.count} DNS requests to fake records will be answered")
 
     # Adjust defaults for IPv6
     if options.ipv6:
@@ -625,4 +649,4 @@ if __name__ == "__main__":
         log.info("No parameters were specified. Running in full proxy mode")
 
     # Launch DNSChef
-    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile, count=options.count)
