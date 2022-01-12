@@ -16,10 +16,10 @@
     "default": {
         "dnslib": {
             "hashes": [
-                "sha256:666bf55274a630a2925411c4ea9ca724529299bbe70f91979ad99c72c5e5099e"
+                "sha256:74a0ef6758c2a8b14d129fd38eb669879249ffc2ba0115e0e3716a856cb87372"
             ],
             "index": "pypi",
-            "version": "==0.9.10"
+            "version": "==0.9.17"
         }
     },
     "develop": {}
