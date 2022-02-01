@@ -6,7 +6,7 @@
 # for the latest version and documentation. Please forward all issues and
 # concerns to iphelix [at] thesprawl.org.
 
-DNSCHEF_VERSION = "0.4"
+DNSCHEF_VERSION = "0.4.1"
 
 # Copyright (C) 2019 Peter Kacherginsky, Marcello Salvati
 # All rights reserved.
@@ -182,6 +182,11 @@ class DNSHandler():
                         sig = base64.b64decode(("".join(sig)).encode('ascii'))
 
                         response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=RDMAP[qtype](covered, algorithm, labels,orig_ttl, sig_exp, sig_inc, key_tag, name, sig) ))
+
+                    elif qtype == "HTTPS":
+                        kv_pairs = fake_record.split(" ")
+                        mydata = RDMAP[qtype].fromZone(kv_pairs)
+                        response.add_answer(RR(qname, getattr(QTYPE,qtype), rdata=mydata))
 
                     else:
                         # dnslib doesn't like trailing dots
