@@ -123,7 +123,26 @@ class DNSHandler():
 
                     # Create a custom response to the query
                     response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap, qr=1, aa=1, ra=1), q=d.q)
+#==============================================
+                    for rdata in d.ar[0].rdata:
+                        if rdata.code == 8:
+                        #    for m in rdata.data:
+                        #        print(m)
+                        #    print("========")
 
+                            netmask = rdata.data[2]
+                        #    print(netmask)
+                            client_subnet = ""
+                            for i in range(4, len(rdata.data)):
+                                client_subnet += str(rdata.data[i])
+                                if i < len(rdata.data) - 1:
+                                    client_subnet += "."
+
+                           # print(client_subnet)
+                            log.info(f"{self.client_address[0]} [{client_subnet}/{netmask}]: cooking the response of type '{qtype}' for {qname} to {fake_record}")
+                           # log.info(f"{rdata.data}")
+
+#=================================================
                     log.info(f"{self.client_address[0]}: cooking the response of type '{qtype}' for {qname} to {fake_record}")
 
                     # IPv6 needs additional work before inclusion:
