@@ -124,7 +124,24 @@ class DNSHandler():
                     # Create a custom response to the query
                     response = DNSRecord(DNSHeader(id=d.header.id, bitmap=d.header.bitmap, qr=1, aa=1, ra=1), q=d.q)
 
+                    if options.csubnet:
+                        if len(d.ar):
+                            for rdata in d.ar[0].rdata:
+                                if rdata.code == 8:
+                                    netmask = rdata.data[2]
+                                    client_subnet = ""
+                                    for i in range(4, len(rdata.data)):
+                                        client_subnet += str(rdata.data[i])
+                                        if i < len(rdata.data) - 1:
+                                            client_subnet += "."
+                                    for m in range(i, 7):
+                                        client_subnet += ".0"
+                                    log.info(f"{self.client_address[0]} [{client_subnet}/{netmask}]: cooking the response of type '{qtype}' for {qname} to {fake_record}")
+
                     log.info(f"{self.client_address[0]}: cooking the response of type '{qtype}' for {qname} to {fake_record}")
+
+
+
 
                     # IPv6 needs additional work before inclusion:
                     if qtype == "AAAA":
@@ -473,6 +490,7 @@ if __name__ == "__main__":
     rungroup.add_argument("-6","--ipv6", action="store_true", default=False, help="Run in IPv6 mode.")
     rungroup.add_argument("-p","--port", metavar="53", default="53", help='Port number to listen for DNS requests.')
     rungroup.add_argument("-q", "--quiet", action="store_false", dest="verbose", default=True, help="Don't show headers.")
+    rungroup.add_argument("--csubnet", action="store_true", default=False, help="Log CSUBNET addr.")
 
     options = parser.parse_args()
 
