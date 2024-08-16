@@ -85,29 +85,46 @@ log.addHandler(log_ch)
 # calculate an appropriate response based on user parameters.
 class DNSHandler():
 
+    def setup(self):
+        # Initialize never_cook_qnames from the server's passed argument
+        self.never_cook_qnames = self.server.never_cook_qnames
+        super().setup()
+
+
+
+
     def parse(self, data):
         response = ""
-
+    
         try:
             # Parse data as DNS
             d = DNSRecord.parse(data)
-
+    
         except Exception:
             log.error(f"{self.client_address[0]}: ERROR: invalid DNS request")
-
+    
         else:
             # Only Process DNS Queries
             if QR[d.header.qr] == "QUERY":
-
+    
                 # Gather query parameters
-                # NOTE: Do not lowercase qname here, because we want to see
-                #       any case request weirdness in the logs.
                 qname = str(d.q.qname)
-
+    
                 # Chop off the last period
                 if qname[-1] == '.': qname = qname[:-1]
-
+    
                 qtype = QTYPE[d.q.qtype]
+    
+                # ** Add this check to skip cooking for certain qnames **
+                if qname in self.never_cook_qnames:
+                    log.info(f"{self.client_address[0]}: skipping cooking for {qname}")
+                    # Directly proxy the request instead
+                    nameserver_tuple = random.choice(self.server.nameservers).split('#')
+                    response = self.proxyrequest(data, *nameserver_tuple)
+                    return response
+    
+                # The rest of your existing code follows here...
+
 
                 # Find all matching fake DNS records for the query name or get False
                 fake_records = dict()
@@ -378,12 +395,13 @@ class TCPHandler(DNSHandler, socketserver.BaseRequestHandler):
 class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
     # Override SocketServer.UDPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log, never_cook_qnames):
         self.nametodns  = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
+        self.never_cook_qnames = never_cook_qnames.split(',') if never_cook_qnames else []  # Initialize the list
 
         socketserver.UDPServer.__init__(self, server_address, RequestHandlerClass)
 
@@ -393,17 +411,19 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
     # Override SocketServer.TCPServer to add extra parameters
-    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log):
+    def __init__(self, server_address, RequestHandlerClass, nametodns, nameservers, ipv6, log, never_cook_qnames):
         self.nametodns   = nametodns
         self.nameservers = nameservers
         self.ipv6        = ipv6
         self.address_family = socket.AF_INET6 if self.ipv6 else socket.AF_INET
         self.log = log
+        self.never_cook_qnames = never_cook_qnames.split(',') if never_cook_qnames else []  # Initialize the list
+
 
         socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass)
 
 # Initialize and start the DNS Server
-def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None):
+def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port="53", logfile=None, never_cook_qnames=None):
     try:
 
         if logfile:
@@ -416,9 +436,10 @@ def start_cooking(interface, nametodns, nameservers, tcp=False, ipv6=False, port
 
         if tcp:
             log.info("DNSChef is running in TCP mode")
-            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedTCPServer((interface, int(port)), TCPHandler, nametodns, nameservers, ipv6, log, never_cook_qnames)
         else:
-            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log)
+            server = ThreadedUDPServer((interface, int(port)), UDPHandler, nametodns, nameservers, ipv6, log, never_cook_qnames)
+
 
         # Start a thread with the server -- that thread will then start
         # more threads for each request
@@ -473,6 +494,8 @@ if __name__ == "__main__":
     rungroup.add_argument("-6","--ipv6", action="store_true", default=False, help="Run in IPv6 mode.")
     rungroup.add_argument("-p","--port", metavar="53", default="53", help='Port number to listen for DNS requests.')
     rungroup.add_argument("-q", "--quiet", action="store_false", dest="verbose", default=True, help="Don't show headers.")
+    rungroup.add_argument("--never-cook-qnames", metavar="domain1.com,domain2.com", help="A comma separated list of domain names for which DNSChef will not cook responses.")
+
 
     options = parser.parse_args()
 
@@ -625,4 +648,4 @@ if __name__ == "__main__":
         log.info("No parameters were specified. Running in full proxy mode")
 
     # Launch DNSChef
-    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile)
+    start_cooking(interface=options.interface, nametodns=nametodns, nameservers=nameservers, tcp=options.tcp, ipv6=options.ipv6, port=options.port, logfile=options.logfile, never_cook_qnames=options.never_cook_qnames)
