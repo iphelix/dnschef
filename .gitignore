@@ -1,1 +1,45 @@
 *.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.py[cod]
+__pycache__/
+.tox/
+.nox/
+
+# Claude
+.claude/*
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.env
+
+# Poetry
+poetry.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Pipenv (keeping lock file)
+# Pipfile.lock is NOT ignored
