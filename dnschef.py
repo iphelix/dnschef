@@ -445,9 +445,9 @@ if __name__ == "__main__":
     header  = "          _                _          __  \n"
     header += "         | | version %s  | |        / _| \n" % DNSCHEF_VERSION
     header += "       __| |_ __  ___  ___| |__   ___| |_ \n"
-    header += "      / _` | '_ \/ __|/ __| '_ \ / _ \  _|\n"
-    header += "     | (_| | | | \__ \ (__| | | |  __/ |  \n"
-    header += "      \__,_|_| |_|___/\___|_| |_|\___|_|  \n"
+    header += "      / _` | '_ \\/ __|/ __| '_ \\ / _ \\  _|\n"
+    header += "     | (_| | | | \\__ \\ (__| | | |  __/ |  \n"
+    header += "      \\__,_|_| |_|___/\\___|_| |_|\\___|_|  \n"
     header += "                   iphelix@thesprawl.org  \n"
 
     # Parse command line arguments
